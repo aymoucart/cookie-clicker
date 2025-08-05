@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Click Cookie Game</title>
+<style>
+  /* Reset */
+  * {
+    margin: 0; padding: 0; box-sizing: border-box;
+  }
+
+  body {
+    background: #005f99;
+    height: 100vh;
+    overflow: hidden;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    user-select: none;
+    cursor: none;
+    display: flex;
+    position: relative;
+  }
+
+  /* Sparkle background container */
+  #sparkles {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .sparkle {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    background: white;
+    border-radius: 50%;
+    opacity: 0.8;
+    animation: sparkleAnim 3s infinite alternate;
+  }
+
+  @keyframes sparkleAnim {
+    0% {opacity: 0.2; transform: scale(1);}
+    100% {opacity: 1; transform: scale(1.4);}
+  }
+
+  #shop {
+    width: 200px;
+    background: #004466;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 10;
+  }
+
+  #shop button {
+    background: white;
+    border-radius: 10px;
+    border: none;
+    padding: 8px;
+    font-size: 1rem;
+    color: #005f99;
+    cursor: pointer;
+    transition: background-color 0.5s ease, color 0.5s ease;
+    user-select: none;
+  }
+
+  #shop button:disabled {
+    background: #ddd;
+    color: #888;
+    cursor: not-allowed;
+  }
+
+  #shop button.auto-toggle {
+    margin-top: 15px;
+    font-weight: bold;
+  }
+
+  #game {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 10;
+  }
+
+  #score {
+    color: white;
+    font-size: 4rem;
+    margin-bottom: 10px;
+    pointer-events: none;
+    user-select: none;
+    text-align: center;
+  }
+
+  #btn {
+    background: white;
+    border: none;
+    border-radius: 50%;
+    width: 150px;
+    height: 150px;
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #005f99;
+    cursor: pointer;
+    outline: none;
+    user-select: none;
+    position: relative;
+    transition: background 0.3s ease;
+  }
+
+  #btn:hover:not(:disabled) {
+    background: #e0f0ff;
+  }
+
+  #btn:disabled {
+    background: #ddd;
+    color: #888;
+    cursor: not-allowed;
+  }
+
+  #toggleAuto {
+    margin-top: 15px;
+    width: 150px;
+    padding: 10px;
+    border-radius: 25px;
+    font-weight: bold;
+    border: none;
+    cursor: pointer;
+    user-select: none;
+    font-size: 1rem;
+    display: none;
+    transition: background-color 0.5s ease;
+  }
+
+  #toggleAuto.enabled {
+    background: rgba(0, 255, 0, 0.4);
+    color: green;
+  }
+  #toggleAuto.disabled {
+    background: rgba(255, 0, 0, 0.4);
+    color: red;
+  }
+
+  /* Custom cursor */
+  #cursor {
+    position: fixed;
+    left: 0; top: 0;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: radial-gradient(circle at center, #aaddff, #004466);
+    pointer-events: none;
+    transform: translate(-50%, -50%) scale(1);
+    transition: transform 0.2s ease, background 0.3s ease;
+    mix-blend-mode: screen;
+    z-index: 9999;
+  }
+
+  /* Falling cookies animation */
+  @keyframes fall {
+    0% {
+      opacity: 1;
+      transform: translateY(0) rotate(0deg);
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(150px) rotate(360deg);
+    }
+  }
+
+  .cookie {
+    position: absolute;
+    font-size: 24px;
+    pointer-events: none;
+    animation: fall 1.5s forwards ease-in;
+    user-select: none;
+    z-index: 1000;
+  }
+
+  /* Screen glow effect */
+  body.glow {
+    box-shadow: 0 0 15px 10px #22ff44;
+    transition: box-shadow 0.8s ease-out;
+  }
+</style>
+</head>
+<body>
+
+<!-- Sparkles container -->
+<div id="sparkles"></div>
+
+<div id="shop">
+  <button id="multiplier1">Buy x2 Multiplier (Cost: 10)</button>
+  <button id="multiplier2">Buy x3 Multiplier (Cost: 30)</button>
+  <button id="multiplier3">Buy x4 Multiplier (Cost: 60)</button>
+  <button id="multiplier4">Buy x5 Multiplier (Cost: 100)</button>
+  <button id="multiplier5">Buy x6 Multiplier (Cost: 150)</button>
+  <button id="multiplier6">Buy x7 Multiplier (Cost: 210)</button>
+  <button id="multiplier7">Buy x8 Multiplier (Cost: 280)</button>
+  <button id="multiplier8">Buy x9 Multiplier (Cost: 360)</button>
+  <button id="multiplier9">Buy x10 Multiplier (Cost: 450)</button>
+  <button id="multiplier10">Buy x11 Multiplier (Cost: 550)</button>
+  <button id="autoClicker">Buy Auto Clicker (Cost: 50)</button>
+</div>
+
+<div id="game">
+  <div id="score">0</div>
+  <button id="btn">Click Me</button>
+  <button id="toggleAuto">Enable Auto Clicker ✅</button>
+</div>
+
+<div id="cursor"></div>
+
+<script>
+  // Sparkles Setup
+  const sparkleCount = 80;
+  const sparkleContainer = document.getElementById('sparkles');
+
+  for(let i=0; i<sparkleCount; i++) {
+    const s = document.createElement('div');
+    s.classList.add('sparkle');
+    s.style.top = Math.random() * window.innerHeight + 'px';
+    s.style.left = Math.random() * window.innerWidth + 'px';
+    s.style.animationDuration = (2 + Math.random()*3) + 's';
+    s.style.animationDelay = (Math.random()*5) + 's';
+    sparkleContainer.appendChild(s);
+  }
+
+  // Game vars
+  const btn = document.getElementById('btn');
+  const scoreEl = document.getElementById('score');
+  const cursor = document.getElementById('cursor');
+  const toggleAuto = document.getElementById('toggleAuto');
+  const shopButtons = {
+    multipliers: [],
+    autoClicker: document.getElementById('autoClicker')
+  };
+
+  for(let i=1; i<=10; i++) {
+    shopButtons.multipliers.push(document.getElementById('multiplier' + i));
+  }
+
+  let score = 0;
+  let multiplier = 1;
+  let autoClickerBought = false;
+  let autoClickerEnabled = false;
+  let autoClickerInterval = null;
+  let mouseDown = false;
+
+  // Upgrade data
+  const upgrades = [
+    {id: 'multiplier1', cost: 10, mul: 2},
+    {id: 'multiplier2', cost: 30, mul: 3},
+    {id: 'multiplier3', cost: 60, mul: 4},
+    {id: 'multiplier4', cost: 100, mul: 5},
+    {id: 'multiplier5', cost: 150, mul: 6},
+    {id: 'multiplier6', cost: 210, mul: 7},
+    {id: 'multiplier7', cost: 280, mul: 8},
+    {id: 'multiplier8', cost: 360, mul: 9},
+    {id: 'multiplier9', cost: 450, mul: 10},
+    {id: 'multiplier10', cost: 550, mul: 11},
+    {id: 'autoClicker', cost: 50}
+  ];
+
+  // Sounds setup using WebAudio API
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  const audioCtx = new AudioContext();
+
+  // Simple beep for click
+  function playClickSound() {
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(500, audioCtx.currentTime);
+    gainNode.gain.setValueAtTime(0.12, audioCtx.currentTime);
+    osc.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.07);
+  }
+
+  // Green glow fade effect on body
+  function triggerGlow() {
+    document.body.classList.add('glow');
+    setTimeout(() => {
+      document.body.classList.remove('glow');
+    }, 800);
+  }
+
+  // Update score display and disable/enable buttons
+  function updateUI() {
+    scoreEl.textContent = score;
+
+    // Disable/enable shop buttons
+    upgrades.forEach(upg => {
+      const btn = document.getElementById(upg.id);
+      if (!btn) return;
+
+      if (score >= upg.cost) {
+        if (btn.disabled) {
+          btn.disabled = false;
+          btn.style.color = '#005f99';
+          btn.style.backgroundColor = 'white';
+          btn.style.transition = 'background-color 1s ease, color 1s ease';
+        }
+      } else {
+        btn.disabled = true;
+        btn.style.backgroundColor = '#ddd';
+        btn.style.color = '#888';
+        btn.style.transition = 'none';
+      }
+    });
+
+    // Auto click toggle button only visible if bought
+    if(autoClickerBought) {
+      toggleAuto.style.display = 'block';
+      toggleAuto.disabled = false;
+      if(autoClickerEnabled) {
+        toggleAuto.classList.add('enabled');
+        toggleAuto.classList.remove('disabled');
+        toggleAuto.textContent = 'Disable Auto Clicker ✅';
+      } else {
+        toggleAuto.classList.add('disabled');
+        toggleAuto.classList.remove('enabled');
+        toggleAuto.textContent = 'Enable Auto Clicker ❌';
+      }
+    } else {
+      toggleAuto.style.display = 'none';
+      toggleAuto.disabled = true;
+    }
+  }
+
+  // Cookie fall animation
+  function spawnCookie() {
+    const cookie = document.createElement('div');
+    cookie.classList.add('cookie');
+    cookie.textContent = '🍪';
+    const rect = btn.getBoundingClientRect();
+    cookie.style.left = (rect.left + rect.width/2 + (Math.random()*60 - 30)) + 'px';
+    cookie.style.top = (rect.top + rect.height/2 + (Math.random()*20 - 10)) + 'px';
+    document.body.appendChild(cookie);
+    setTimeout(() => cookie.remove(), 1600);
+  }
+
+  // Click button click handler
+  btn.addEventListener('mousedown', e => {
+    mouseDown = true;
+    addPoints();
+    playClickSound();
+    spawnCookie();
+    btn.style.transform = 'scale(0.95)';
+  });
+
+  btn.addEventListener('mouseup', e => {
+    mouseDown = false;
+    btn.style.transform = 'scale(1)';
+  });
+
+  btn.addEventListener('mouseleave', e => {
+    mouseDown = false;
+    btn.style.transform = 'scale(1)';
+  });
+
+  // Add points function
+  function addPoints() {
+    score += multiplier;
+    updateUI();
+  }
+
+  // Holding mouse down adds points every 150ms
+  setInterval(() => {
+    if (mouseDown) {
+      addPoints();
+      playClickSound();
+      spawnCookie();
+    }
+  }, 150);
+
+  // Shop buttons logic
+  upgrades.forEach(upg => {
+    const button = document.getElementById(upg.id);
+    if (!button) return;
+
+    button.addEventListener('click', () => {
+      if (score >= upg.cost) {
+        score -= upg.cost;
+        if (upg.mul) {
+          multiplier = upg.mul;
+        }
+        if (upg.id === 'autoClicker') {
+          autoClickerBought = true;
+          toggleAuto.style.display = 'block';
+          toggleAuto.disabled = false;
+          autoClickerEnabled = true;
+          startAutoClicker();
+        }
+        triggerGlow();
+        updateUI();
+      }
+    });
+  });
+
+  // Auto clicker toggle button
+  toggleAuto.addEventListener('click', () => {
+    if (!autoClickerBought) return;
+    autoClickerEnabled = !autoClickerEnabled;
+    if (autoClickerEnabled) {
+      startAutoClicker();
+    } else {
+      stopAutoClicker();
+    }
+    updateUI();
+  });
+
+  // Start auto clicker interval
+  function startAutoClicker() {
+    if (autoClickerInterval) clearInterval(autoClickerInterval);
+    autoClickerInterval = setInterval(() => {
+      addPoints();
+      spawnCookie();
+      playClickSound();
+    }, 700);
+  }
+
+  // Stop auto clicker interval
+  function stopAutoClicker() {
+    if (autoClickerInterval) clearInterval(autoClickerInterval);
+  }
+
+  // Initial UI update
+  updateUI();
+
+  // Custom cursor logic
+  window.addEventListener('mousemove', e => {
+    cursor.style.left = e.clientX + 'px';
+    cursor.style.top = e.clientY + 'px';
+  });
+
+  btn.addEventListener('mouseenter', () => {
+    cursor.style.transform = 'translate(-50%, -50%) scale(1.6)';
+  });
+
+  btn.addEventListener('mouseleave', () => {
+    cursor.style.transform = 'translate(-50%, -50%) scale(1)';
+  });
+
+  btn.addEventListener('mousedown', () => {
+    cursor.style.transform = 'translate(-50%, -50%) scale(0.8)';
+  });
+
+  btn.addEventListener('mouseup', () => {
+    cursor.style.transform = 'translate(-50%, -50%) scale(1.6)';
+  });
+</script>
+</body>
+</html>
